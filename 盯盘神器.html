@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>盯盘神器</title>
+  <style>
+    :root {
+      --bg: #05070b;
+      --panel: #0d1219;
+      --panel-2: #121a24;
+      --panel-3: #182230;
+      --line: #243243;
+      --text: #e9f0f8;
+      --muted: #8fa2b8;
+      --red: #ff5b6e;
+      --green: #14d49f;
+      --yellow: #ffd166;
+      --orange: #ff8a3d;
+      --cyan: #25d0ff;
+      --shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(37, 208, 255, 0.08), transparent 25%),
+        radial-gradient(circle at top right, rgba(255, 91, 110, 0.08), transparent 22%),
+        linear-gradient(180deg, #060910 0%, #04060a 100%);
+      color: var(--text);
+      font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+    }
+    body { padding: 10px; }
+    a { color: inherit; text-decoration: none; }
+    button, input { font: inherit; }
+
+    .terminal {
+      min-height: calc(100vh - 36px);
+      border: 1px solid rgba(143, 162, 184, 0.18);
+      border-radius: 24px;
+      overflow: hidden;
+      background: rgba(7, 11, 16, 0.92);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 14px;
+      background: linear-gradient(180deg, rgba(20, 28, 39, 0.96), rgba(10, 14, 20, 0.96));
+      border-bottom: 1px solid rgba(143, 162, 184, 0.16);
+    }
+
+    .titlebar-left,
+    .titlebar-right,
+    .toolbar,
+    .quick-tabs,
+    .market-strip,
+    .watch-actions,
+    .theme-tags {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .window-dots { display: flex; gap: 8px; }
+    .window-dots span {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: block;
+    }
+    .window-dots span:nth-child(1) { background: #ff5f57; }
+    .window-dots span:nth-child(2) { background: #ffbd2e; }
+    .window-dots span:nth-child(3) { background: #28c840; }
+
+    .brand { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+    .brand small { margin-left: 10px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+
+    .toolbar {
+      padding: 12px 14px 8px;
+      border-bottom: 1px solid rgba(143, 162, 184, 0.12);
+      background: rgba(8, 12, 18, 0.88);
+    }
+
+    .group-label {
+      color: #6f8297;
+      font-size: 12px;
+      margin-right: 2px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .toolbar-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .hero-note {
+      color: #9bb0c7;
+      font-size: 12px;
+      line-height: 1.7;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    .tab-btn,
+    .chip,
+    .action-btn,
+    .code-btn {
+      border: 1px solid rgba(143, 162, 184, 0.18);
+      background: linear-gradient(180deg, rgba(24, 34, 48, 0.92), rgba(13, 18, 25, 0.92));
+      color: var(--text);
+      border-radius: 12px;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .tab-btn:hover,
+    .chip:hover,
+    .action-btn:hover,
+    .code-btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(37, 208, 255, 0.34);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
+    }
+
+    .tab-btn.active,
+    .chip.active,
+    .action-btn.active,
+    .code-btn.active {
+      border-color: rgba(37, 208, 255, 0.62);
+      color: #dff8ff;
+      background: linear-gradient(180deg, rgba(18, 45, 63, 0.96), rgba(14, 25, 36, 0.96));
+      box-shadow: inset 0 0 0 1px rgba(37, 208, 255, 0.18), 0 10px 24px rgba(0, 0, 0, 0.22);
+    }
+
+    .status-pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: #d7e7f7;
+      background: rgba(20, 212, 159, 0.12);
+      border: 1px solid rgba(20, 212, 159, 0.25);
+    }
+
+    .status-pill.warn {
+      background: rgba(255, 138, 61, 0.12);
+      border-color: rgba(255, 138, 61, 0.28);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(680px, 1fr) 380px;
+      gap: 10px;
+      padding: 10px;
+      min-height: calc(100vh - 168px);
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(17, 24, 33, 0.96), rgba(10, 14, 20, 0.96));
+      border: 1px solid rgba(143, 162, 184, 0.14);
+      border-radius: var(--radius);
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(143, 162, 184, 0.12);
+      background: linear-gradient(180deg, rgba(24, 34, 48, 0.88), rgba(17, 24, 33, 0.88));
+    }
+
+    .panel-title { display: flex; flex-direction: column; gap: 4px; }
+    .panel-title strong { font-size: 15px; font-weight: 700; }
+    .panel-title span { color: var(--muted); font-size: 12px; }
+
+    .sidebar,
+    .right-stack,
+    .main-stack,
+    .detail-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .nav-list,
+    .watch-list,
+    .theme-list,
+    .news-list,
+    .lhb-list,
+    .stock-list,
+    .detail-list {
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .nav-item,
+    .watch-item,
+    .theme-item,
+    .news-item,
+    .lhb-item,
+    .stock-item,
+    .detail-item,
+    .ticker-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(143, 162, 184, 0.1);
+    }
+
+    .nav-item,
+    .watch-item,
+    .theme-item,
+    .news-item,
+    .lhb-item,
+    .stock-item { cursor: pointer; }
+
+    .nav-item:hover,
+    .nav-item.active,
+    .watch-item:hover,
+    .watch-item.active,
+    .theme-item:hover,
+    .theme-item.active,
+    .news-item:hover,
+    .news-item.active,
+    .lhb-item:hover,
+    .stock-item:hover,
+    .stock-item.active {
+      background: linear-gradient(90deg, rgba(37, 208, 255, 0.12), rgba(255, 255, 255, 0.02));
+      border-color: rgba(37, 208, 255, 0.2);
+    }
+
+    .nav-item b,
+    .watch-item b,
+    .theme-item b,
+    .news-item b,
+    .lhb-item b,
+    .stock-item b,
+    .detail-item b,
+    .ticker-item b { display: block; margin-bottom: 4px; }
+
+    .muted,
+    .desc,
+    .empty,
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+    .badge,
+    .time-badge {
+      white-space: nowrap;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      border: 1px solid rgba(143, 162, 184, 0.16);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .badge.orange { color: #ffd7a6; border-color: rgba(255, 138, 61, 0.22); background: rgba(255, 138, 61, 0.08); }
+    .red { color: var(--red); }
+    .green { color: var(--green); }
+    .yellow { color: var(--yellow); }
+    .orange { color: var(--orange); }
+    .mono { font-family: Consolas, Monaco, monospace; }
+
+    .hero {
+      display: block;
+      padding: 10px 12px 12px;
+      border-bottom: 1px solid rgba(143, 162, 184, 0.12);
+    }
+
+    .hero-title { margin: 8px 0 6px; font-size: 28px; line-height: 1.1; }
+    .hero-subtitle { margin: 0; color: var(--muted); line-height: 1.7; }
+
+    .metrics {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric-card,
+    .mini-card {
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(143, 162, 184, 0.1);
+      padding: 12px;
+    }
+
+    .metric-card span,
+    .mini-card strong { display: block; }
+    .metric-card strong { margin-top: 8px; font-size: 24px; }
+    .metric-card small,
+    .mini-card p { color: var(--muted); margin: 8px 0 0; line-height: 1.6; }
+
+    .board-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+    .market-strip { padding: 0 0 4px; }
+    .content-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 10px; align-items: start; }
+    .content-grid.single-column { grid-template-columns: 1fr; }
+    .layout.limit-mode { grid-template-columns: 1fr; }
+
+    .limit-layout,
+    .limit-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .limit-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .limit-section {
+      border-radius: 16px;
+      border: 1px solid rgba(143, 162, 184, 0.1);
+      background: rgba(255, 255, 255, 0.03);
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .limit-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(143, 162, 184, 0.08);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .limit-section-title strong,
+    .limit-section-title span { display: block; }
+    .limit-section-title span { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .limit-section-body { padding: 0 8px 8px; }
+    .is-hidden { display: none !important; }
+
+    .table-wrap { overflow: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 100%; }
+    th, td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid rgba(143, 162, 184, 0.08);
+      font-size: 13px;
+      vertical-align: top;
+    }
+    th {
+      color: #b9cae0;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.02);
+      position: sticky;
+      top: 0;
+    }
+
+    .detail-panel { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+    .detail-hero {
+      border-radius: 16px;
+      padding: 12px;
+      background: linear-gradient(135deg, rgba(37, 208, 255, 0.10), rgba(255, 91, 110, 0.05));
+      border: 1px solid rgba(37, 208, 255, 0.15);
+    }
+    .detail-hero h3 { margin: 0 0 8px; font-size: 24px; }
+    .detail-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .detail-list { max-height: 260px; overflow: auto; }
+    .article-body {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .article-body p {
+      margin: 0;
+      color: var(--text);
+      line-height: 1.8;
+      white-space: pre-wrap;
+    }
+
+    .footer-note {
+      padding: 10px 12px;
+      border-top: 1px solid rgba(143, 162, 184, 0.1);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .loading,
+    .empty,
+    .error {
+      padding: 18px;
+      border-radius: 16px;
+      border: 1px dashed rgba(143, 162, 184, 0.18);
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .error {
+      color: #ffc8ce;
+      border-color: rgba(255, 91, 110, 0.22);
+      background: rgba(255, 91, 110, 0.05);
+    }
+
+    @media (max-width: 1400px) {
+      .layout { grid-template-columns: 1fr; }
+      .hero, .content-grid { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .limit-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 10px; }
+      .titlebar, .toolbar, .hero, .board-body, .footer-note { padding-left: 10px; padding-right: 10px; }
+      .metrics, .detail-meta { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="terminal">
+    <div class="titlebar">
+      <div class="titlebar-left">
+        <div class="window-dots"><span></span><span></span><span></span></div>
+        <div class="brand">盯盘神器 <small>盯盘工作台 / Real Data</small></div>
+      </div>
+      <div class="titlebar-right">
+        <div class="status-pill" id="tradeDatePill">交易日 --</div>
+        <div class="status-pill warn" id="sourceStatusPill">数据源检测中</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="group-label">主面板</div>
+      <div class="quick-tabs" id="viewTabs"></div>
+      <div class="group-label">状态</div>
+      <span class="toolbar-note">当前只保留已开发且可用的功能入口: 腾讯 / 选股宝 / 开盘啦资讯 / 龙虎榜 / 东方财富连板</span>
+    </div>
+
+    <div class="layout" style="grid-template-columns: 1fr;">
+      <main class="panel">
+        <div class="hero">
+          <div>
+            <div class="hero-note">页面为四个独立版面，题材、新闻、龙虎榜和连板。</div>
+            <h1 class="hero-title" id="heroTitle">热点题材</h1>
+            <p class="hero-subtitle" id="heroSubtitle">聚焦当天热点题材、代表股票、新闻推送、龙虎榜和连板。</p>
+            <div class="metrics" id="metricCards"></div>
+          </div>
+        </div>
+
+        <div class="board-body">
+          <div class="watch-actions" style="justify-content: space-between;">
+            <div class="toolbar-note">当前版面会按所选模块切换内容，新闻、龙虎榜、连板支持自动刷新。</div>
+            <button class="action-btn" id="refreshDataBtn">刷新数据</button>
+          </div>
+          <div id="viewContent"></div>
+        </div>
+
+        <div class="footer-note">
+          当前版本为四个独立版面: 热点题材、新闻推送、龙虎榜、连板看板。
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      currentView: "theme",
+      selectedThemeId: null,
+      selectedNewsId: null,
+      themes: [],
+      themeStocks: [],
+      news: [],
+      newsDetail: null,
+      lhb: [],
+      lhbDate: null,
+      limitBoards: { today: [], yesterday: [], streaks: [], todayDate: null, yesterdayDate: null },
+      metrics: [],
+      signals: [],
+      sourceHealth: { theme: "pending", news: "pending", lhb: "pending", limit: "pending" }
+    };
+
+    const viewMap = {
+      theme: { title: "热点题材", subtitle: "单独看热点题材和代表股票，直接观察主线和扩散方向。" },
+      news: { title: "新闻推送", subtitle: "把主题机会改成新闻及时推送，集中看最新资讯和正文。" },
+      capital: { title: "龙虎榜", subtitle: "单独看最近交易日龙虎榜个股、净买入和上榜次数。" },
+      limit: { title: "连板看板", subtitle: "单独看昨日涨停、今日涨停和连续涨停股。" }
+    };
+
+    const navItems = [
+      { key: "theme", name: "热点题材", desc: "看热点题材和代表股票", tag: "题材" },
+      { key: "news", name: "新闻推送", desc: "看最新新闻和正文推送", tag: "新闻" },
+      { key: "capital", name: "龙虎榜", desc: "看榜单个股和净买入", tag: "资金" },
+      { key: "limit", name: "连板看板", desc: "看涨停结构和连板晋级", tag: "连板" }
+    ];
+
+    function formatNumber(value) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return "--";
+      const abs = Math.abs(num);
+      if (abs >= 1e8) return (num / 1e8).toFixed(2) + "亿";
+      if (abs >= 1e4) return (num / 1e4).toFixed(2) + "万";
+      return num.toFixed(2);
+    }
+
+    function formatPercent(value) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return "--";
+      return (num > 0 ? "+" : "") + num.toFixed(2) + "%";
+    }
+
+    function normalizeText(value) {
+      return String(value ?? "")
+        .replace(/[\u0000-\u001f\u007f]/g, " ")
+        .replace(/\uFFFD/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function escapeHtml(text) {
+      return normalizeText(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function toStockCode(code) {
+      return String(code || "").replace(/[^0-9]/g, "").slice(-6);
+    }
+
+    function formatTimeStamp(ts) {
+      if (!ts) return "--";
+      const date = new Date(Number(ts) * 1000);
+      if (Number.isNaN(date.getTime())) return "--";
+      return date.toLocaleString("zh-CN", { hour12: false });
+    }
+
+    function formatDateParam(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}${month}${day}`;
+    }
+
+    function formatDateLabel(value) {
+      const text = String(value || "");
+      if (!/^\d{8}$/.test(text)) return "--";
+      return `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}`;
+    }
+
+    function formatBoardTime(value) {
+      const text = String(value || "").padStart(6, "0");
+      if (!/^\d{6}$/.test(text)) return "--";
+      return `${text.slice(0, 2)}:${text.slice(2, 4)}:${text.slice(4, 6)}`;
+    }
+
+    function extractNewsParagraphs(content) {
+      const raw = String(content || "").replace(/<\\\//g, "</");
+      if (!raw.trim()) return [];
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(raw, "text/html");
+        doc.querySelectorAll("script,style,iframe,noscript").forEach(node => node.remove());
+        const paragraphNodes = Array.from(doc.body.querySelectorAll("p, li, blockquote"));
+        const paragraphs = paragraphNodes
+          .map(node => normalizeText(node.textContent || ""))
+          .filter(Boolean);
+        if (paragraphs.length) return paragraphs;
+        const fallbackText = normalizeText(doc.body.textContent || "");
+        return fallbackText ? [fallbackText] : [];
+      } catch {
+        const fallbackText = normalizeText(raw.replace(/<[^>]+>/g, " "));
+        return fallbackText ? [fallbackText] : [];
+      }
+    }
+
+    function renderNewsArticle(content) {
+      const paragraphs = extractNewsParagraphs(content);
+      if (!paragraphs.length) return '<div class="empty">暂无正文</div>';
+      return `<div class="article-body">${paragraphs.map(text => `<p>${escapeHtml(text)}</p>`).join("")}</div>`;
+    }
+
+    async function fetchJson(url) {
+      const response = await fetch(url, { headers: { Accept: "application/json,text/plain,*/*" } });
+      if (!response.ok) throw new Error("请求失败: " + response.status);
+      return response.json();
+    }
+
+    async function fetchJsonText(url) {
+      const response = await fetch(url, { headers: { Accept: "application/json,text/plain,*/*" } });
+      if (!response.ok) throw new Error("请求失败: " + response.status);
+      const text = await response.text();
+      const contentType = response.headers.get("content-type") || "";
+      if (!/json/i.test(contentType) && !/^[\s\r\n]*[\[{]/.test(text)) {
+        throw new Error("返回的不是 JSON 数据");
+      }
+      return JSON.parse(text);
+    }
+
+    async function fetchText(url, encoding = "utf-8") {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("请求失败: " + response.status);
+      if (!encoding || /^utf-?8$/i.test(encoding)) return response.text();
+      const buffer = await response.arrayBuffer();
+      try {
+        return new TextDecoder(encoding).decode(buffer);
+      } catch {
+        return new TextDecoder().decode(buffer);
+      }
+    }
+
+    function toQuoteCode(code) {
+      const pureCode = toStockCode(code);
+      if (!pureCode) return "";
+      return /^(5|6|9|11)/.test(pureCode) ? `sh${pureCode}` : `sz${pureCode}`;
+    }
+
+    function parseQuoteNameMap(text) {
+      const result = new Map();
+      text.split(";").map(item => item.trim()).filter(Boolean).forEach(line => {
+        const match = line.match(/="([^"]+)"/);
+        if (!match) return;
+        const parts = match[1].split("~");
+        const code = toStockCode(parts[2]);
+        const name = normalizeText(parts[1]);
+        if (code && name) result.set(code, name);
+      });
+      return result;
+    }
+
+    async function fetchQuoteNameMap(codes) {
+      const quoteCodes = [...new Set(codes.map(toQuoteCode).filter(Boolean))];
+      if (!quoteCodes.length) return new Map();
+      const text = await fetchText("https://qt.gtimg.cn/q=" + quoteCodes.join(","), "gb18030");
+      return parseQuoteNameMap(text);
+    }
+
+    async function loadThemes() {
+      const json = await fetchJson("https://flash-api.xuangubao.cn/api/surge_stock/plates");
+      state.themes = json?.data?.items || [];
+      state.selectedThemeId = state.selectedThemeId || state.themes[0]?.id || null;
+      state.sourceHealth.theme = state.themes.length ? "ok" : "empty";
+    }
+
+    async function loadThemeStocks(themeId) {
+      if (!themeId) { state.themeStocks = []; return; }
+      const detail = await fetchJson("https://flash-api.xuangubao.cn/api/plate/plate_set?id=" + themeId);
+      const chains = detail?.data?.industrial_chains || [];
+      const stockMap = new Map();
+      chains.forEach(chain => {
+        (chain.stock_premium_infos || []).forEach(item => {
+          const code = toStockCode(item?.stock_code || item?.code || item?.symbol || "");
+          if (!code || stockMap.has(code)) return;
+          stockMap.set(code, {
+            code,
+            name: item?.stock_name || item?.name || code,
+            desc: item?.desc || item?.description || "",
+            chain: chain?.name || ""
+          });
+        });
+      });
+      const themeStocks = Array.from(stockMap.values()).slice(0, 20);
+      const nameMap = await fetchQuoteNameMap(themeStocks.map(item => item.code)).catch(() => new Map());
+      state.themeStocks = themeStocks.map(item => ({
+        ...item,
+        name: nameMap.get(item.code) || normalizeText(item.name) || item.code
+      }));
+    }
+
+    async function loadNews() {
+      const json = await fetchJson("https://apparticle.longhuvip.com/w1/api/index.php?apiv=w28&c=ThemeNews&a=GetList&Type=-1&st=20");
+      state.news = json?.List || [];
+      state.selectedNewsId = state.selectedNewsId || state.news[0]?.CID || null;
+      state.sourceHealth.news = state.news.length ? "ok" : "empty";
+    }
+
+    async function loadNewsDetail(newsId) {
+      if (!newsId) { state.newsDetail = null; return; }
+      const json = await fetchJson("https://apparticle.longhuvip.com/w1/api/index.php?apiv=w28&c=ThemeNews&a=GetInfo&NewsID=" + newsId);
+      state.newsDetail = json?.Info || null;
+    }
+
+    async function loadLhb() {
+      const today = new Date();
+      let matchedDate = null;
+      let matchedList = [];
+
+      for (let step = 0; step <= 7; step += 1) {
+        const candidate = new Date(today);
+        candidate.setDate(today.getDate() - step);
+        const dateText = candidate.toLocaleDateString("sv-SE");
+        try {
+          const json = await fetchJsonText("https://applhb.longhuvip.com/w1/api/index.php?st=20&a=GetStockList&c=LongHuBang&Index=0&apiv=w34&Type=2&Time=" + dateText);
+          const list = json?.list || [];
+          if (list.length) {
+            matchedDate = json?.Time || dateText;
+            matchedList = list;
+            break;
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      state.lhb = matchedList;
+      state.lhbDate = matchedDate;
+      state.sourceHealth.lhb = matchedList.length ? "ok" : "empty";
+    }
+
+    async function loadLimitBoards() {
+      const today = new Date();
+      const todayParam = formatDateParam(today);
+      const todayJson = await fetchJson("https://push2ex.eastmoney.com/getTopicZTPool?ut=7eea3edcaed734bea9cbfc24409ed989&dpt=wz.ztzt&Pageindex=0&pagesize=200&sort=fbt:asc&date=" + todayParam);
+      const todayPool = todayJson?.data?.pool || [];
+      let yesterdayPool = [];
+      let yesterdayDate = null;
+
+      for (let step = 1; step <= 7; step += 1) {
+        const candidate = new Date(today);
+        candidate.setDate(today.getDate() - step);
+        const dateParam = formatDateParam(candidate);
+        const json = await fetchJson("https://push2ex.eastmoney.com/getYesterdayZTPool?ut=7eea3edcaed734bea9cbfc24409ed989&dpt=wz.ztzt&Pageindex=0&pagesize=200&sort=zs:desc&date=" + dateParam);
+        const pool = json?.data?.pool || [];
+        if (pool.length) {
+          yesterdayPool = pool;
+          yesterdayDate = dateParam;
+          break;
+        }
+      }
+
+      const streaks = [...todayPool]
+        .filter(item => Number(item.lbc) >= 2)
+        .sort((a, b) => Number(b.lbc) - Number(a.lbc) || Number(b.fund) - Number(a.fund));
+
+      state.limitBoards = {
+        today: todayPool,
+        yesterday: yesterdayPool,
+        streaks,
+        todayDate: String(todayJson?.data?.qdate || todayParam),
+        yesterdayDate
+      };
+      state.sourceHealth.limit = todayPool.length || yesterdayPool.length || streaks.length ? "ok" : "empty";
+    }
+
+    function buildThemeInsights() {
+      const hottestTheme = state.themes[0];
+      const representative = state.themeStocks[0];
+      return {
+        metrics: [
+          { label: "热点题材数", value: String(state.themes.length), extra: "选股宝实时列表", cls: "yellow" },
+          { label: "最热题材", value: hottestTheme ? hottestTheme.name : "--", extra: hottestTheme?.description || "等待数据", cls: "red" },
+          { label: "代表股票数", value: String(state.themeStocks.length), extra: state.selectedThemeId ? "当前题材已解析" : "等待选择题材", cls: "orange" },
+          { label: "代表股", value: representative ? representative.name : "--", extra: representative ? representative.code : "等待数据", cls: "green" }
+        ],
+        signals: [
+          { tag: "热点题材", title: hottestTheme ? `${hottestTheme.name} 处于前排` : "等待热点数据", text: hottestTheme?.description || "热点题材接口暂未返回有效描述。" },
+          { tag: "代表股票", title: representative ? `${representative.name} 属于当前题材` : "等待代表股解析", text: representative ? `${representative.chain || "题材链路"} / ${representative.desc || "暂无补充描述"}` : "点击题材后会展示代表股票。" },
+          { tag: "系统状态", title: buildSourceSummary(), text: "题材页只展示热点题材和代表股票。" }
+        ]
+      };
+    }
+
+    function buildNewsInsights() {
+      const latest = state.news[0];
+      const relatedCount = (state.newsDetail?.Stocks || []).length;
+      return {
+        metrics: [
+          { label: "新闻条数", value: String(state.news.length), extra: "按最新时间排序", cls: "yellow" },
+          { label: "最新推送", value: latest ? formatTimeStamp(latest.TimeStamp) : "--", extra: latest ? latest.Source || "新闻源" : "等待数据", cls: "red" },
+          { label: "当前正文", value: state.newsDetail ? "已加载" : "未加载", extra: state.newsDetail ? state.newsDetail.Title : "请选择一条新闻", cls: "green" },
+          { label: "关联个股", value: String(relatedCount), extra: state.newsDetail ? "当前新闻关联" : "等待详情", cls: "orange" }
+        ],
+        signals: [
+          { tag: "最新新闻", title: latest ? latest.Title : "等待新闻推送", text: latest ? `${latest.Source || "资讯"} / ${formatTimeStamp(latest.TimeStamp)}` : "新闻接口暂未返回内容。" },
+          { tag: "正文状态", title: state.newsDetail ? "当前新闻正文已加载" : "请选择一条新闻", text: state.newsDetail?.Content || "点击左侧新闻卡片后显示正文和关联个股。" },
+          { tag: "系统状态", title: buildSourceSummary(), text: "新闻页只保留及时推送和正文。" }
+        ]
+      };
+    }
+
+    function buildCapitalInsights() {
+      const strongestLhb = [...state.lhb].sort((a, b) => Number(b.BuyIn) - Number(a.BuyIn))[0];
+      return {
+        metrics: [
+          { label: "榜单样本", value: String(state.lhb.length), extra: state.lhbDate || "最近交易日", cls: "yellow" },
+          { label: "净买入最高", value: strongestLhb ? formatNumber(strongestLhb.BuyIn) : "--", extra: strongestLhb ? strongestLhb.Name : "等待数据", cls: Number(strongestLhb?.BuyIn) >= 0 ? "red" : "green" },
+          { label: "上榜次数", value: strongestLhb ? String(strongestLhb.JoinNum) : "--", extra: strongestLhb ? `${strongestLhb.Name} 上榜` : "等待数据", cls: "orange" },
+          { label: "榜单日期", value: state.lhbDate || "--", extra: "自动回退到最近交易日", cls: "green" }
+        ],
+        signals: [
+          { tag: "龙虎榜", title: strongestLhb ? `${strongestLhb.Name} 净买入靠前` : "等待龙虎榜数据", text: strongestLhb ? `${state.lhbDate || "最近交易日"} 净买入 ${formatNumber(strongestLhb.BuyIn)}，成交额 ${formatNumber(strongestLhb.Turnover)}。` : "龙虎榜接口暂无有效返回。" },
+          { tag: "系统状态", title: buildSourceSummary(), text: "龙虎榜页现在是独立版面，只看榜单个股和净买入。" }
+        ]
+      };
+    }
+
+    function buildLimitInsights() {
+      const todayLeader = state.limitBoards.today[0];
+      const streakLeader = state.limitBoards.streaks[0];
+      const yesterdayLeader = [...state.limitBoards.yesterday].sort((a, b) => Number(b.zs) - Number(a.zs))[0];
+      return {
+        metrics: [
+          { label: "今日涨停家数", value: String(state.limitBoards.today.length), extra: formatDateLabel(state.limitBoards.todayDate), cls: "red" },
+          { label: "昨日涨停样本", value: String(state.limitBoards.yesterday.length), extra: state.limitBoards.yesterdayDate ? formatDateLabel(state.limitBoards.yesterdayDate) : "未找到上一交易日", cls: "yellow" },
+          { label: "连板家数", value: String(state.limitBoards.streaks.length), extra: streakLeader ? `${streakLeader.n} ${streakLeader.lbc} 连板` : "暂无连板股", cls: "orange" },
+          { label: "最高连板", value: streakLeader ? `${streakLeader.lbc} 连板` : "--", extra: streakLeader ? streakLeader.n : "等待数据", cls: "red" }
+        ],
+        signals: [
+          { tag: "昨日回溯", title: yesterdayLeader ? `${yesterdayLeader.n} 昨板后表现靠前` : "昨日涨停样本不足", text: yesterdayLeader ? `今日涨跌 ${formatPercent(yesterdayLeader.zdp)}，振幅 ${formatPercent(yesterdayLeader.zf)}。` : "未拉到上一交易日涨停样本。" },
+          { tag: "今日封板", title: todayLeader ? `${todayLeader.n} 率先封板` : "今日涨停池暂无数据", text: todayLeader ? `首次封板 ${formatBoardTime(todayLeader.fbt)}，所属行业 ${todayLeader.hybk || "--"}。` : "当前未拿到今日涨停池。" },
+          { tag: "连板龙头", title: streakLeader ? `${streakLeader.n} ${streakLeader.lbc} 连板` : "当前暂无 2 连板以上个股", text: streakLeader ? `${streakLeader.zttj?.days || streakLeader.lbc} 天 ${streakLeader.zttj?.ct || streakLeader.lbc} 板，封单额约 ${formatNumber(streakLeader.fund)}。` : "连板列表会从今日涨停池自动筛出。" },
+          { tag: "系统状态", title: buildSourceSummary(), text: "连板页用东方财富涨停池和昨日涨停池拼出独立看板，不额外接无效接口。" }
+        ]
+      };
+    }
+
+    function calcMetrics() {
+      const builderMap = {
+        theme: buildThemeInsights,
+        news: buildNewsInsights,
+        capital: buildCapitalInsights,
+        limit: buildLimitInsights
+      };
+      const payload = (builderMap[state.currentView] || buildThemeInsights)();
+      state.metrics = payload.metrics;
+      state.signals = payload.signals;
+    }
+
+    function buildSourceSummary() {
+      return Object.values(state.sourceHealth).filter(item => item === "ok").length + " / 4 个核心源可用";
+    }
+
+    function isViewAvailable(viewKey) {
+      if (viewKey === "theme") return state.sourceHealth.theme === "ok";
+      if (viewKey === "news") return state.sourceHealth.news === "ok";
+      if (viewKey === "capital") return state.sourceHealth.lhb === "ok";
+      if (viewKey === "limit") return state.sourceHealth.limit === "ok";
+      return false;
+    }
+
+    function getVisibleViews() {
+      return navItems.filter(item => isViewAvailable(item.key));
+    }
+
+    function ensureActiveView() {
+      const visibleViews = getVisibleViews().map(item => item.key);
+      if (!visibleViews.includes(state.currentView)) {
+        state.currentView = visibleViews[0] || "theme";
+      }
+    }
+
+    function renderViewTabs() {
+      const panel = document.getElementById("viewTabs");
+      const views = getVisibleViews();
+      panel.innerHTML = views.map(item => `
+        <button class="tab-btn ${state.currentView === item.key ? "active" : ""}" data-view="${item.key}">${escapeHtml(item.name)}</button>
+      `).join("");
+    }
+
+    function renderHero() {
+      const meta = viewMap[state.currentView] || viewMap.theme;
+      document.getElementById("heroTitle").textContent = meta.title;
+      document.getElementById("heroSubtitle").textContent = meta.subtitle;
+      document.getElementById("metricCards").innerHTML = state.metrics.map(item => `
+        <div class="metric-card">
+          <span>${escapeHtml(item.label)}</span>
+          <strong class="${item.cls}">${escapeHtml(item.value)}</strong>
+          <small>${escapeHtml(item.extra)}</small>
+        </div>
+      `).join("");
+    }
+
+    function renderThemePage() {
+      const themeRows = state.themes.slice(0, 18).map(item => `
+        <tr>
+          <td>${escapeHtml(item.name)}</td>
+          <td>${escapeHtml(item.description || "--")}</td>
+          <td><button class="code-btn ${state.selectedThemeId === item.id ? "active" : ""}" data-theme-id="${item.id}">代表股票</button></td>
+        </tr>
+      `).join("");
+      const stockCards = state.themeStocks.length ? state.themeStocks.slice(0, 20).map(item => `
+        <div class="stock-item">
+          <div>
+            <b>${escapeHtml(item.name)} <span class="muted mono">${escapeHtml(item.code)}</span></b>
+            <div class="desc">${escapeHtml(item.chain || "题材链路")} / ${escapeHtml(item.desc || "无补充描述")}</div>
+          </div>
+          <span class="badge orange">代表股</span>
+        </div>
+      `).join("") : '<div class="empty">当前题材还没有解析出代表股票。</div>';
+      return `
+        <div class="content-grid" style="grid-template-columns: 1.15fr 0.85fr;">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <strong>热点题材列表</strong>
+                <span>点击题材后查看代表股票</span>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>题材</th><th>描述</th><th>动作</th></tr></thead>
+                <tbody>${themeRows || '<tr><td colspan="3">暂无热点题材。</td></tr>'}</tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <strong>代表股票</strong>
+                <span>当前题材的代表股票和链路说明</span>
+              </div>
+            </div>
+            <div class="stock-list">${stockCards}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderNewsPage() {
+      const newsCards = state.news.length ? state.news.slice(0, 20).map(item => `
+        <div class="news-item ${state.selectedNewsId === item.CID ? "active" : ""}" data-news-id="${item.CID}">
+          <div>
+            <b>${escapeHtml(item.Title)}</b>
+            <div class="desc">${formatTimeStamp(item.TimeStamp)} / ${escapeHtml(item.Source || "新闻推送")} / ${escapeHtml(item.Kword || "无关键词")}</div>
+          </div>
+          <span class="badge">查看正文</span>
+        </div>
+      `).join("") : '<div class="empty">新闻推送暂无数据。</div>';
+      const relatedStocks = (state.newsDetail?.Stocks || []).slice(0, 10).map(item => `
+        <div class="detail-item">
+          <div>
+            <b>${escapeHtml(item.Name)} <span class="muted mono">${escapeHtml(item.Code)}</span></b>
+            <div class="desc">涨幅 ${formatPercent(item.Rate)} ${item.Desn ? "/ " + escapeHtml(item.Desn) : ""}</div>
+          </div>
+        </div>
+      `).join("");
+      const detailPanel = state.newsDetail ? `
+        <div class="detail-hero">
+          <h3>${escapeHtml(state.newsDetail.Title)}</h3>
+          <div class="desc">${escapeHtml(state.newsDetail.Source || "新闻推送")} / ${formatTimeStamp(state.newsDetail.TimeStamp)}</div>
+        </div>
+        <div class="mini-card"><strong>正文</strong>${renderNewsArticle(state.newsDetail.Content)}</div>
+        <div class="mini-card"><strong>关联板块</strong><p>${escapeHtml(state.newsDetail.ZSName || "--")}</p></div>
+        <div class="detail-list">${relatedStocks || '<div class="empty">暂无关联个股。</div>'}</div>
+      ` : '<div class="empty">请选择一条新闻后查看正文和关联个股。</div>';
+      return `
+        <div class="content-grid" style="grid-template-columns: 0.9fr 1.1fr;">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <strong>新闻推送列表</strong>
+                <span>按时间倒序展示最新推送</span>
+              </div>
+            </div>
+            <div class="news-list">${newsCards}</div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <strong>新闻正文</strong>
+                <span>当前选中新闻的正文与关联个股</span>
+              </div>
+            </div>
+            <div class="detail-panel">${detailPanel}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCapitalPage() {
+      const rows = state.lhb.slice(0, 30).map(item => `
+        <tr>
+          <td class="mono">${escapeHtml(item.ID)}</td>
+          <td>${escapeHtml(item.Name)}</td>
+          <td class="${Number(item.IncreaseAmount) >= 0 ? "red" : "green"}">${escapeHtml(item.IncreaseAmount)}</td>
+          <td class="${Number(item.BuyIn) >= 0 ? "red" : "green"}">${formatNumber(item.BuyIn)}</td>
+          <td>${formatNumber(item.Turnover)}</td>
+          <td>${escapeHtml(String(item.JoinNum))}</td>
+        </tr>
+      `).join("");
+      return `
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <strong>龙虎榜列表</strong>
+              <span>${escapeHtml(state.lhbDate || "最近交易日")} 的上榜个股和净买入</span>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>代码</th><th>名称</th><th>涨幅</th><th>净买入</th><th>成交额</th><th>上榜次数</th></tr></thead>
+              <tbody>${rows || '<tr><td colspan="6">龙虎榜暂无数据。</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderBoardRows(rows, type) {
+      return rows.map(item => {
+        if (type === "today") {
+          return `
+            <tr>
+              <td class="mono">${escapeHtml(item.c)}</td>
+              <td>${escapeHtml(item.n)}</td>
+              <td class="red">${item.lbc || 1} 连板</td>
+              <td>${escapeHtml(item.hybk || "--")}</td>
+              <td>${formatBoardTime(item.fbt)}</td>
+              <td>${formatNumber(item.fund)}</td>
+            </tr>
+          `;
+        }
+        if (type === "yesterday") {
+          return `
+            <tr>
+              <td class="mono">${escapeHtml(item.c)}</td>
+              <td>${escapeHtml(item.n)}</td>
+              <td>${item.ylbc || 1} 连板</td>
+              <td class="${Number(item.zdp) >= 0 ? "red" : "green"}">${formatPercent(item.zdp)}</td>
+              <td>${formatPercent(item.zf)}</td>
+              <td>${formatBoardTime(item.yfbt)}</td>
+            </tr>
+          `;
+        }
+        return `
+          <tr>
+            <td class="mono">${escapeHtml(item.c)}</td>
+            <td>${escapeHtml(item.n)}</td>
+            <td class="red">${item.lbc} 连板</td>
+            <td>${item.zttj?.days || item.lbc} 天 ${item.zttj?.ct || item.lbc} 板</td>
+            <td>${escapeHtml(item.hybk || "--")}</td>
+            <td>${formatNumber(item.fund)}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderBoardSection(title, subtitle, rows, type) {
+      const headers = {
+        today: "<tr><th>代码</th><th>名称</th><th>连板</th><th>行业</th><th>封板时间</th><th>封单额</th></tr>",
+        yesterday: "<tr><th>代码</th><th>名称</th><th>昨连板</th><th>今日涨跌</th><th>振幅</th><th>昨封板时间</th></tr>",
+        streak: "<tr><th>代码</th><th>名称</th><th>连板数</th><th>几天几板</th><th>行业</th><th>封单额</th></tr>"
+      };
+      const emptyMap = {
+        today: "今日涨停池暂无数据。",
+        yesterday: "昨日涨停样本暂无数据。",
+        streak: "当前没有 2 连板以上个股。"
+      };
+      return `
+        <section class="limit-section">
+          <div class="limit-section-header">
+            <div class="limit-section-title">
+              <strong>${escapeHtml(title)}</strong>
+              <span>${escapeHtml(subtitle)}</span>
+            </div>
+            <span class="badge">${rows.length} 只</span>
+          </div>
+          <div class="limit-section-body">
+            ${rows.length ? `
+              <div class="table-wrap">
+                <table>
+                  <thead>${headers[type]}</thead>
+                  <tbody>${renderBoardRows(rows, type)}</tbody>
+                </table>
+              </div>
+            ` : `<div class="empty">${emptyMap[type]}</div>`}
+          </div>
+        </section>
+      `;
+    }
+
+    function renderLimitBoardView() {
+      return `
+        <div class="limit-layout">
+          <div class="limit-grid">
+            ${renderBoardSection("昨日涨停板", state.limitBoards.yesterdayDate ? `样本日期 ${formatDateLabel(state.limitBoards.yesterdayDate)}` : "自动回溯上一交易日", state.limitBoards.yesterday.slice(0, 40), "yesterday")}
+            ${renderBoardSection("今天涨停板", `交易日 ${formatDateLabel(state.limitBoards.todayDate)}`, state.limitBoards.today.slice(0, 40), "today")}
+            ${renderBoardSection("连续涨停股", "从今日涨停池自动筛出 2 连板以上个股", state.limitBoards.streaks.slice(0, 40), "streak")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderViewContent() {
+      const panel = document.getElementById("viewContent");
+      if (state.currentView === "theme") panel.innerHTML = renderThemePage();
+      else if (state.currentView === "news") panel.innerHTML = renderNewsPage();
+      else if (state.currentView === "capital") panel.innerHTML = renderCapitalPage();
+      else panel.innerHTML = renderLimitBoardView();
+    }
+
+    function renderStatus() {
+      document.getElementById("tradeDatePill").textContent = state.currentView === "limit"
+        ? "连板日 " + formatDateLabel(state.limitBoards.todayDate || formatDateParam(new Date()))
+        : (state.currentView === "capital" ? "榜单日 " + (state.lhbDate || new Date().toLocaleDateString("zh-CN")) : "更新于 " + new Date().toLocaleTimeString("zh-CN", { hour12: false }));
+      document.getElementById("sourceStatusPill").textContent = buildSourceSummary();
+    }
+
+    function renderAll() {
+      ensureActiveView();
+      calcMetrics();
+      renderViewTabs();
+      renderHero();
+      renderViewContent();
+      renderStatus();
+    }
+
+    async function selectTheme(themeId) {
+      state.selectedThemeId = Number(themeId);
+      try { await loadThemeStocks(state.selectedThemeId); } catch { state.themeStocks = []; }
+      renderAll();
+    }
+
+    async function selectNews(newsId) {
+      state.selectedNewsId = Number(newsId);
+      try { await loadNewsDetail(state.selectedNewsId); } catch { state.newsDetail = null; }
+      renderAll();
+    }
+
+    function bindEvents() {
+      document.body.addEventListener("click", async event => {
+        const navButton = event.target.closest(".tab-btn[data-view]");
+        if (navButton) {
+          state.currentView = navButton.dataset.view;
+          renderAll();
+          return;
+        }
+
+        const themeNode = event.target.closest("[data-theme-id]");
+        if (themeNode) {
+          await selectTheme(themeNode.dataset.themeId);
+          return;
+        }
+
+        const newsNode = event.target.closest("[data-news-id]");
+        if (newsNode) {
+          await selectNews(newsNode.dataset.newsId);
+          return;
+        }
+      });
+
+      document.getElementById("refreshDataBtn").addEventListener("click", async () => {
+        await loadAll(false);
+      });
+    }
+
+    async function loadAll(initial = true) {
+      if (initial) {
+        document.getElementById("viewContent").innerHTML = '<div class="loading">正在加载真实数据，请稍候...</div>';
+      }
+      await Promise.all([
+        loadThemes().catch(() => { state.themes = []; state.sourceHealth.theme = "error"; }),
+        loadNews().catch(() => { state.news = []; state.sourceHealth.news = "error"; }),
+        loadLhb().catch(() => { state.lhb = []; state.sourceHealth.lhb = "error"; }),
+        loadLimitBoards().catch(() => { state.limitBoards = { today: [], yesterday: [], streaks: [], todayDate: null, yesterdayDate: null }; state.sourceHealth.limit = "error"; })
+      ]);
+      await Promise.all([
+        selectTheme(state.selectedThemeId || state.themes[0]?.id || null),
+        selectNews(state.selectedNewsId || state.news[0]?.CID || null)
+      ]);
+      renderAll();
+    }
+
+    bindEvents();
+    loadAll(true);
+    setInterval(() => {
+      Promise.all([
+        loadThemes().then(() => selectTheme(state.selectedThemeId || state.themes[0]?.id || null)).catch(() => {}),
+        loadNews().then(() => selectNews(state.selectedNewsId || state.news[0]?.CID || null)).catch(() => {}),
+        loadLhb().catch(() => {}),
+        loadLimitBoards().catch(() => {})
+      ]).then(() => {
+        renderAll();
+      }).catch(() => {});
+    }, 60000);
+  </script>
+</body>
+</html>
